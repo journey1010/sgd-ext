@@ -1,4 +1,7 @@
-const ids = ["asu", "dir", "correo", "coUsuario", "sDeAsuM", "deAsu", "deObsDoc", "busAsunto", "sBuscAsunto"];
+const ids = [
+    "asu", "dir", "correo", "coUsuario", "sDeAsuM", "deAsu", "deObsDoc", "busAsunto", "sBuscAsunto", "coUsuariolabel",
+    "dePass", "txtBusDependencia", "deSigla", "deCortaDepen",
+  ];
 
 // Función para aplicar el estilo
 function applyStyleIfNeeded(id) {
@@ -24,6 +27,7 @@ observer.observe(document.body, {
 
 document.addEventListener("keydown", function(event) {
     if (event.ctrlKey && event.key === "v") {
-    event.stopPropagation(); 
+      event.stopPropagation(); 
     }
 }, true);
+

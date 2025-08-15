@@ -31,3 +31,61 @@ document.addEventListener("keydown", function(event) {
     }
 }, true);
 
+(function () {
+    const SELECTORS = {
+        form: 'form[id="dependenciaBean"]',
+        input: 'input[id="coDependencia"]'
+    };
+
+    function initListeners(form, input) {
+        console.log('✅ Detectados form e input, iniciando listeners');
+
+        async function fetchAndFill() {
+            try {
+                input.disabled = true;
+
+                const res = await fetch('https://sgd-control.regionloreto.gob.pe/api/dependencia/last/co_dependencia', {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const value = typeof data === 'string' ? data : Object.values(data)[0];
+
+                input.value = value || '';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+
+                console.log(`ℹ️ coDependencia autocompletado con: ${value}`);
+            } catch (err) {
+                console.error('Error al obtener coDependencia:', err);
+            } finally {
+                input.disabled = false;
+            }
+        }
+
+        form.addEventListener('click', fetchAndFill);
+        input.addEventListener('click', fetchAndFill);
+    }
+
+    function checkAndBind() {
+        const form = document.querySelector(SELECTORS.form);
+        const input = document.querySelector(SELECTORS.input);
+        if (form && input) {
+            initListeners(form, input);
+            return true;
+        }
+        return false;
+    }
+
+    // Intento inicial
+    if (!checkAndBind()) {
+        // Observa cambios en el DOM hasta que aparezcan
+        const obs = new MutationObserver(() => {
+            if (checkAndBind()) {
+                obs.disconnect();
+            }
+        });
+        obs.observe(document, { childList: true, subtree: true });
+    }
+})();

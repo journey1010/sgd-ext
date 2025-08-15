@@ -31,23 +31,17 @@ document.addEventListener("keydown", function(event) {
     }
 }, true);
 
-//Obtiene el código que le corresponde a una nueva dependencia
+
+// Obtiene el código que le corresponde a una nueva dependencia
 (function () {
     const SELECTORS = {
         form: 'form#dependenciaBean',
         input: 'input#coDependencia'
     };
 
-    // Guarda inputs ya autocompletados para no repetir
-    const filledInputs = new WeakSet();
-
     async function fetchAndFill(input) {
-        // Evita llamadas innecesarias
-        if (!input || filledInputs.has(input)) return;
-        if (input.value && input.value.trim() !== '') {
-            filledInputs.add(input);
-            return; // ya tiene valor, no lo pisamos
-        }
+        if (!input) return;
+        if (input.value.trim() !== '') return; // No sobreescribir si ya tiene algo
 
         try {
             input.disabled = true;
@@ -65,10 +59,8 @@ document.addEventListener("keydown", function(event) {
                 input.value = value;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
-  
             }
 
-            filledInputs.add(input);
         } catch (err) {
             console.error('Error al obtener coDependencia:', err);
         } finally {
@@ -76,49 +68,16 @@ document.addEventListener("keydown", function(event) {
         }
     }
 
-    function scheduleFill(input) {
-        // Pequeño delay para permitir que el DOM u otros scripts seteen valores primero
-        if (!input) return;
-        if (typeof requestIdleCallback === 'function') {
-            requestIdleCallback(() => fetchAndFill(input), { timeout: 500 });
-        } else {
-            setTimeout(() => fetchAndFill(input), 80);
-        }
-    }
-
-    function bindOnce(form) {
-        const input = form.querySelector(SELECTORS.input);
-        if (!input) return;
-
-        // Autocompletar una sola vez si está vacío
-        scheduleFill(input);
-
-        // Vigila si el input se reemplaza dinámicamente; autocompleta solo la nueva instancia
-        const mo = new MutationObserver(() => {
-            const current = form.querySelector(SELECTORS.input);
-            if (current && !filledInputs.has(current)) {
-                scheduleFill(current);
+    function init() {
+        document.addEventListener('click', (e) => {
+            // Si el click fue en el input exacto
+            if (e.target.matches(SELECTORS.input)) {
+                fetchAndFill(e.target);
             }
         });
-        mo.observe(form, { childList: true, subtree: true });
     }
 
-    function init() {
-        const form = document.querySelector(SELECTORS.form);
-        if (form) {
-            bindOnce(form);
-            return true;
-        }
-        return false;
-    }
-
-    // Intento inicial + espera por DOM dinámico
-    if (!init()) {
-        const obs = new MutationObserver(() => {
-            if (init()) obs.disconnect();
-        });
-        obs.observe(document, { childList: true, subtree: true });
-    }
+    init();
 })();
 
 

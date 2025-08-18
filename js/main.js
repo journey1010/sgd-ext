@@ -41,7 +41,7 @@ document.addEventListener("keydown", function(event) {
 
     async function fetchAndFill(input) {
         if (!input) return;
-        if (input.value.trim() !== '') return; // No sobreescribir si ya tiene algo
+        if (input.dataset.filled === "1") return; // evitar múltiples ejecuciones
 
         try {
             input.disabled = true;
@@ -59,6 +59,7 @@ document.addEventListener("keydown", function(event) {
                 input.value = value;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
+                input.dataset.filled = "1"; // marcar que ya fue llenado
             }
 
         } catch (err) {
@@ -68,18 +69,20 @@ document.addEventListener("keydown", function(event) {
         }
     }
 
-    function init() {
-        document.addEventListener('click', (e) => {
-            // Si el click fue en el input exacto
-            if (e.target.matches(SELECTORS.input)) {
-                fetchAndFill(e.target);
+    function watchDOM() {
+        const observer = new MutationObserver(() => {
+            const input = document.querySelector(SELECTORS.input);
+            if (input && !input.dataset.watched) {
+                input.dataset.watched = "1"; // evitar múltiples observaciones
+                fetchAndFill(input);
             }
         });
+
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    init();
+    watchDOM();
 })();
-
 
 //Obtiene el nivel de una dependencia
 (function () {
@@ -87,12 +90,14 @@ document.addEventListener("keydown", function(event) {
     const INPUT_PADRE_ID = 'deDepenPadre';   // id del input padre
     const INPUT_NIVEL_ID = 'coNivel';        // id del input hijo
 
+    let lastNivel = ""; // memoria global para restaurar valor
+
     function initWatcher(inputPadre, inputNivel) {
         let lastVal = inputPadre.value;
 
         async function fetchNivel() {
             const valor = inputPadre.value.trim();
-            if (!valor) return; // nada que buscar
+            if (!valor) return;
 
             try {
                 inputNivel.disabled = true;
@@ -102,34 +107,56 @@ document.addEventListener("keydown", function(event) {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
                 const data = await res.json();
-                const value = typeof data === 'number' ? data : Object.values(data)[0] ?? '';
 
-                inputNivel.value = value;
+                // Detectar valor según la forma de respuesta
+                let value = '';
+                if (typeof data === 'number' || typeof data === 'string') {
+                    value = data;
+                } else if (data && typeof data === 'object') {
+                    value = data.nivel ?? data.coNivel ?? Object.values(data)[0] ?? '';
+                }
 
-                // Dispara eventos para que el frontend lo detecte
-                ['input', 'change'].forEach(evt =>
-                    inputNivel.dispatchEvent(new Event(evt, { bubbles: true }))
-                );
+                if (value != null && String(value).trim() !== '') {
+                    inputNivel.value = value;
+                    lastNivel = value; // 🔥 guardar en memoria global
 
-                console.log(`ℹ️ coNivel autocompletado con: ${value}`);
+                    ['input', 'change'].forEach(evt =>
+                        inputNivel.dispatchEvent(new Event(evt, { bubbles: true }))
+                    );
+                    console.log(`✅ coNivel autocompletado con: ${value}`);
+                }
             } catch (err) {
-                console.error('Error al obtener coNivel:', err);
+                console.error('❌ Error al obtener coNivel:', err);
             } finally {
                 inputNivel.disabled = false;
             }
         }
 
-        // Escucha cambios por interacción normal
-        inputPadre.addEventListener('input', fetchNivel);
-        inputPadre.addEventListener('change', fetchNivel);
+        // Escucha cambios "normales"
+        inputPadre.addEventListener('input', () => {
+            lastVal = inputPadre.value;
+            fetchNivel();
+        });
+        inputPadre.addEventListener('change', () => {
+            lastVal = inputPadre.value;
+            fetchNivel();
+        });
 
-        // Polling para cambios hechos por JS sin eventos
+        // Polling por cambios hechos por JS
         setInterval(() => {
             if (inputPadre.value !== lastVal) {
                 lastVal = inputPadre.value;
                 fetchNivel();
             }
-        }, 400);
+        }, 500);
+
+        // 🔥 Restaurar valor si ya existía
+        if (lastNivel && !inputNivel.value) {
+            inputNivel.value = lastNivel;
+            ['input', 'change'].forEach(evt =>
+                inputNivel.dispatchEvent(new Event(evt, { bubbles: true }))
+            );
+        }
     }
 
     function checkAndBind() {
@@ -139,25 +166,27 @@ document.addEventListener("keydown", function(event) {
         const inputPadre = form.querySelector(`#${INPUT_PADRE_ID}`);
         const inputNivel = form.querySelector(`#${INPUT_NIVEL_ID}`);
 
-        if (inputPadre && inputNivel) {
+        if (inputPadre && inputNivel && !inputPadre.dataset.watched) {
+            inputPadre.dataset.watched = "1";
             initWatcher(inputPadre, inputNivel);
             return true;
         }
         return false;
     }
 
-    // Intento inicial + espera si los inputs aparecen luego
+    // Intento inicial + observar DOM dinámico
     if (!checkAndBind()) {
         const obs = new MutationObserver(() => {
-            if (checkAndBind()) obs.disconnect();
+            checkAndBind();
         });
-        obs.observe(document, { childList: true, subtree: true });
+        obs.observe(document.body, { childList: true, subtree: true });
     }
 
-    // Si usas PrimeFaces o AJAX parcial, re-enlaza después del render
+    // Re-bindeo para AJAX parcial (PrimeFaces / JSF)
     if (window.PF) {
         $(document).on('pfAjaxComplete', () => {
             checkAndBind();
         });
     }
 })();
+

@@ -10,7 +10,7 @@
   "content_scripts": [
     {
       "matches": ["https://sgd.regionloreto.gob.pe/*"],
-      "js": ["js/main.js"],
+      "js": ["dist/main.js"],
       "run_at": "document_idle"
     }
   ],

@@ -13,7 +13,6 @@ function run() {
     initPasteBlocker();
     initAutoCodeDependencia();
     initAutoNivelDependencia();
-    initFixLocal();
 }
 
 // Asegurarse de que el script se ejecute después de que el contenido de la página se haya cargado.

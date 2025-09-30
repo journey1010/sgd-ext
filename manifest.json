@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SGD Form Fixer",
-  "version": "2.5",
+  "version": "2.6",
   "description": "Evita el bloqueo de pegar texto y desactiva la capitalización automática de formularios en sgd.regionloreto.gob.pe.",
  "permissions": ["scripting", "activeTab"],
   "host_permissions": [

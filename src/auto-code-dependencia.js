@@ -1,12 +1,12 @@
-// src/auto-code-dependencia.js
-
 const SELECTORS = {
     form: 'form#dependenciaBean',
     input: 'input#coDependencia'
 };
 
+const TARGET_ACTION = '/sgd/4.7/srTablaConfiguracion.do?accion=goNewAdminUO'; // ✅ URL específica que debe coincidir
+
 async function fetchAndFill(input) {
-    if (!input || input.dataset.filled === "1") return; // Evitar múltiples ejecuciones
+    if (!input || input.dataset.filled === "1") return;
 
     try {
         input.disabled = true;
@@ -23,7 +23,7 @@ async function fetchAndFill(input) {
             input.value = value;
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
-            input.dataset.filled = "1"; // Marcar como llenado
+            input.dataset.filled = "1";
         }
 
     } catch (err) {
@@ -35,9 +35,16 @@ async function fetchAndFill(input) {
 
 function watchDOM() {
     const observer = new MutationObserver(() => {
+        const form = document.querySelector(SELECTORS.form);
         const input = document.querySelector(SELECTORS.input);
-        if (input && !input.dataset.watched) {
-            input.dataset.watched = "1"; // Evitar múltiples observaciones
+
+        if (
+            form &&
+            form.action.includes(TARGET_ACTION) &&
+            input &&
+            !input.dataset.watched
+        ) {
+            input.dataset.watched = "1";
             fetchAndFill(input);
         }
     });

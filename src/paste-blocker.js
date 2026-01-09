@@ -1,29 +1,64 @@
 // src/paste-blocker.js
-
 export function initPasteBlocker() {
-    // Agrega un listener en la fase de captura para detener la propagación del evento.
+    // Intercepta eventos paste en fase de captura
     document.addEventListener("paste", function(event) {
-        // Si la acción predeterminada del evento ha sido impedida
-        if (event.defaultPrevented) {
-            // Obtenemos los datos del portapapeles.
-            const pastedText = (event.clipboardData || window.clipboardData).getData('text');
+        // Previene que otros listeners bloqueen el paste
+        event.stopImmediatePropagation();
+        
+        // Obtiene el texto del portapapeles
+        const pastedText = (event.clipboardData || window.clipboardData).getData('text');
+        
+        if (pastedText) {
+            const activeElement = document.activeElement;
             
-            if (pastedText) {
-                // Aquí puedes pegar el texto manualmente en el elemento activo (ej. un input).
-                // Esto solo es necesario si el bloqueo es muy agresivo.
-                const activeElement = document.activeElement;
-                if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-                    activeElement.value += pastedText;
+            // Verifica si es un elemento editable
+            if (activeElement && 
+                (activeElement.tagName === 'INPUT' || 
+                 activeElement.tagName === 'TEXTAREA' || 
+                 activeElement.isContentEditable)) {
+                
+                event.preventDefault();
+                
+                // Para input y textarea
+                if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') {
+                    const start = activeElement.selectionStart;
+                    const end = activeElement.selectionEnd;
+                    const currentValue = activeElement.value;
+                    
+                    // Inserta el texto en la posición del cursor
+                    activeElement.value = currentValue.substring(0, start) + 
+                                         pastedText + 
+                                         currentValue.substring(end);
+                    
+                    // Reposiciona el cursor después del texto pegado
+                    const newPosition = start + pastedText.length;
+                    activeElement.selectionStart = newPosition;
+                    activeElement.selectionEnd = newPosition;
+                    
+                    // Dispara evento input para frameworks reactivos
+                    activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                // Para elementos contentEditable
+                else if (activeElement.isContentEditable) {
+                    document.execCommand('insertText', false, pastedText);
                 }
             }
         }
-        // Asegura que la propagación del evento no se detenga.
-        event.stopPropagation();
-    }, true); // El 'true' es para que el listener se ejecute en la fase de captura.
-
+    }, true);
+    
+    // Intercepta Ctrl+V en fase de captura
     document.addEventListener("keydown", function(event) {
-        if (event.ctrlKey && event.key === "v") {
-            event.stopPropagation();
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+            // Detiene la propagación para prevenir bloqueos
+            event.stopImmediatePropagation();
         }
     }, true);
+    
+    // También intercepta el evento contextmenu para el clic derecho
+    document.addEventListener("contextmenu", function(event) {
+        // Permite que el menú contextual se abra normalmente
+        event.stopImmediatePropagation();
+    }, true);
+    
+    console.log("Paste blocker inicializado - Ctrl+V y clic derecho → pegar habilitados");
 }
